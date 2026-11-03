@@ -1,4 +1,4 @@
-const CACHE = 'natinflex-v23';
+const CACHE = 'natinflex-v24';
 const FILES = ['./', 'index.html', 'app.js', 'style.css', 'data.json', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => {
   // cache:'reload' : ne jamais précacher une copie périmée du cache HTTP du navigateur
