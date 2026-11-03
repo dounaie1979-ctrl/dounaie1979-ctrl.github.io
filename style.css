@@ -172,3 +172,5 @@ mark{background:#ffd24d;color:#111;border-radius:3px;padding:0 1px}
 .scard.sc{border:2px solid var(--line,#d6dbe6)}
 .scard.sc.on{background:var(--brand,#0b3d91);color:#fff;border-color:var(--brand,#0b3d91)}
 .scard.sc.on small,.scard.sc.on b{color:#fff}
+
+.sico{display:inline-block;margin-right:7px;font-size:18px;line-height:1;vertical-align:-1px}

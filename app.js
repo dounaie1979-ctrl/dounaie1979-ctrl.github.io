@@ -324,29 +324,36 @@ function catTiles(road) {
   return `<div class="grid cats">${CATS.map(([name, ico], i) => { if (road !== undefined && ROAD_CATS.has(name) !== road) return ''; const n = SCEN.filter(s => s.cat === name).length;
     return n ? `<button class="scard cat" data-cat="${i}"><span class="ico">${ico}</span><b>${esc(name)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('')}</div>`;
 }
-function famTiles() {
-  return `<div class="grid cats">${FAM.map(([name, ico, cats], i) => { const n = SCEN.filter(s => cats.includes(s.cat)).length;
+function volBanner() {
+  return state.volee ? `<div class="note info" style="margin:8px 0">🚗 Filtre « À la volée » actif : seules les infractions relevables sans interception sont affichées. <button class="btn" style="margin-left:6px" data-volee="0">Désactiver</button></div>` : '';
+}
+const isVol = n => !!(E[n] && E[n].volee);
+const volOn = s => !!(state.volee && (!s || scenRoad(s)));
+function scenIds(s) { const ids = s.groups.flatMap(g => g.ids); return volOn(s) ? ids.filter(isVol) : ids; }
+function famTiles(road) {
+  return `<div class="grid cats">${FAM.map(([name, ico, cats], i) => { if (ROAD_CATS.has(cats[0]) !== road) return ''; const n = SCEN.filter(s => cats.includes(s.cat) && scenIds(s).length).length;
     return n ? `<button class="scard cat" data-fam="${i}"><span class="ico">${ico}</span><b>${esc(name)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('')}</div>`;
 }
 function viewFam(i) {
   const f = FAM[i];
   if (!f) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Famille introuvable.</div>`;
-  let h = `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${f[1]} ${esc(f[0])}</h2>`;
-  f[2].forEach(c => {
-    const ss = SCEN.filter(s => s.cat === c); if (!ss.length) return;
-    const ico = (CATS.find(x => x[0] === c) || [])[1] || '';
-    if (f[2].length > 1) h += `<h2>${ico} ${esc(c)}</h2>`;
-    h += `<div class="grid">${ss.map(s => scenCard(s)).join('')}</div>`;
-  });
-  return h;
+  let h = `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${f[1]} ${esc(f[0])}</h2>` + (ROAD_CATS.has(f[2][0]) ? volBanner() : '');
+  if (f[2].length > 1) {   // plusieurs sous-catégories : tuiles à ouvrir
+    const tiles = f[2].map(c => { const ci = CATS.findIndex(x => x[0] === c); if (ci < 0) return '';
+      const n = SCEN.filter(s => s.cat === c && scenIds(s).length).length;
+      return n ? `<button class="scard cat" data-cat="${ci}"><span class="ico">${CATS[ci][1]}</span><b>${esc(c)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('');
+    return h + (tiles ? `<div class="grid cats">${tiles}</div>` : `<div class="empty">Aucune situation ne correspond au filtre.</div>`);
+  }
+  const ss = SCEN.filter(s => s.cat === f[2][0] && scenIds(s).length);
+  return h + (ss.length ? `<div class="grid">${ss.map(s => scenCard(s)).join('')}</div>` : `<div class="empty">Aucune situation ne correspond au filtre.</div>`);
 }
 function scenCard(s, big) {
-  const n = s.groups.reduce((a, g) => a + g.ids.length, 0);
-  return `<button class="scard ${big ? 'big' : ''}" data-s="${s.id}"><b>${esc(s.title)}</b><small>${esc(s.cat)} · ${n} NATINF</small></button>`;
+  const n = scenIds(s).length;
+  return `<button class="scard ${big ? 'big' : ''}" data-s="${s.id}"><b><span class="sico">${s.ico || ''}</span>${esc(s.title)}</b><small>${esc(s.cat)} · ${n} NATINF</small></button>`;
 }
 
 /* ---------- état et vues ---------- */
-const state = {tab: (t => (t === 'situations' || t === 'infractions') ? 'routier' : t)(store.get('tab', 'routier')), filter: 'tous', q: '', shown: 40};
+const state = {volee: !!store.get('volee', false), tab: (t => (t === 'situations' || t === 'infractions') ? 'routier' : t)(store.get('tab', 'routier')), filter: 'tous', q: '', shown: 40};
 let lastScroll = 0;
 const main = $('#main');
 
@@ -359,15 +366,13 @@ function viewScope() {
   const road = state.tab !== 'general';
   const q = state.q.trim();
   if (!['tous', 'volee', 'points'].includes(state.filter) || (!road && state.filter !== 'tous')) state.filter = 'tous';
-  const sc4 = road ? [['volee', '🚗', 'À la volée', 'sans interception'], ['points', '🎯', 'Barème des points', 'par nombre de points']] : [];
-  let html = !sc4.length ? '' : `<div class="grid shortcuts">${sc4.map(([k, ico, l, sub]) =>
-    `<button class="scard sc ${state.filter === k ? 'on' : ''}" data-filter="${state.filter === k ? 'tous' : k}"><span class="ico">${ico}</span><b>${l}</b><small>${sub}</small></button>`).join('')}</div>`;
-  const sf = state.filter === 'volee' ? 'volee' : 'tous';
+  let html = !road ? '' : `<div class="grid shortcuts"><button class="scard sc ${state.volee ? 'on' : ''}" data-volee="${state.volee ? 0 : 1}"><span class="ico">${state.volee ? '☑' : '☐'}</span><b>À la volée</b><small>${state.volee ? 'filtre actif : relevable sans interception' : 'ne montrer que les infractions relevables sans interception'}</small></button><button class="scard sc ${state.filter === 'points' ? 'on' : ''}" data-filter="${state.filter === 'points' ? 'tous' : 'points'}"><span class="ico">🎯</span><b>Barème des points</b><small>par nombre de points</small></button></div>`;
+  const sf = (road && (state.filter === 'volee' || state.volee)) ? 'volee' : 'tous';
   if (!q && state.filter === 'points') {
     const groups = new Map(); const grave = [];
-    ROWS.forEach((r, i) => { const e = E[r[F_NUM]]; if (!e || !(e.pts > 0) || r[F_ROAD] !== 1) return;
+    ROWS.forEach((r, i) => { const e = E[r[F_NUM]]; if (!e || !(e.pts > 0) || r[F_ROAD] !== 1 || (state.volee && !e.volee)) return;
       if (/^(HOMICIDE|BLESSURES)/.test(r[F_LIB])) grave.push(i); else { if (!groups.has(e.pts)) groups.set(e.pts, []); groups.get(e.pts).push(i); } });
-    html += `<p class="hint">Infractions routières avec retrait de points, classées par nombre de points. Les retraits peuvent se cumuler dans la limite de 8 points. <span class="tag">Indicatif – à valider</span></p>`;
+    html += volBanner() + `<p class="hint">Infractions routières avec retrait de points, classées par nombre de points. Les retraits peuvent se cumuler dans la limite de 8 points. <span class="tag">Indicatif – à valider</span></p>`;
     [...groups.keys()].sort((x, y) => y - x).forEach(p => {
       html += `<h2>${p} point${p > 1 ? 's' : ''} <small style="font-weight:400">(${groups.get(p).length})</small></h2><div class="list">${groups.get(p).map(i => card(i)).join('')}</div>`; });
     if (grave.length) html += `<h2>Homicides et blessures routières <small style="font-weight:400">(${grave.length})</small></h2><p class="hint">Délits avec retrait de 6 points : voir la fiche de chaque infraction.</p><div class="list">${grave.map(i => card(i)).join('')}</div>`;
@@ -377,6 +382,7 @@ function viewScope() {
     const all = []; ROWS.forEach((r, i) => { const v = E[r[F_NUM]] && E[r[F_NUM]].volee; if (v) all.push([v.topic, i]); });
     html += `<p class="hint">Infractions pouvant être relevées <b>sans interception du conducteur</b> (liste R.121-6 du Code de la route, avec redevabilité pécuniaire du titulaire du certificat d'immatriculation – L.121-3). <span class="tag">Indicatif – à valider</span></p>`;
     let cur = '';
+    html += `<button class="more" data-filter="tous" style="margin-bottom:10px">‹ Retour aux familles</button>`;
     all.forEach(([t, i]) => { if (t !== cur) { cur = t; html += `<h2>${esc(t)}</h2>`; } html += `<div class="list" style="margin-bottom:6px">${card(i)}</div>`; });
     return html;
   }
@@ -384,7 +390,8 @@ function viewScope() {
     html += road
       ? `<p class="hint"><b>Infractions routières.</b> Choisissez une situation de contrôle, ou cherchez par <b>mot</b> (« sans permis », « tuning »), <b>numéro NATINF</b> (« 1247 ») ou <b>article</b> (« L234-1 »). Hors ligne.</p>`
       : `<p class="hint"><b>Infractions générales</b> (hors Code de la route : personnes, biens, stupéfiants, armes, ordre public…). Choisissez une situation, ou cherchez par <b>mot</b> (« baston », « dealer »), <b>numéro NATINF</b> ou <b>article</b> (« 222-13 »). Hors ligne.</p>`;
-    html += road ? `<h2>Situations par catégorie</h2>` + catTiles(true) : `<h2>Situations par famille</h2>` + famTiles();
+    html += (road ? volBanner() : '') + `<h2>Situations par famille</h2>` + famTiles(road);
+    if (road && state.volee) html += `<button class="more" data-filter="volee">Liste complète par rubrique (R.121-6)</button>`;
     const freq = road ? ['tuning', 'sans permis', 'alcool', 'téléphone', 'ceinture', 'plaque', 'stationnement gênant', "refus d'obtempérer", 'trottinette', 'plaque étrangère']
                       : ['baston', 'dealer', 'vol', 'menaces', 'arme', 'squat', 'tapage', 'outrage', 'protoxyde', 'travail dissimulé', 'débit de boissons'];
     html += `<h2>Recherches fréquentes</h2><div class="grid">${freq.map(x => `<button class="scard" data-ex="${esc(x)}"><b>${esc(x)}</b></button>`).join('')}</div>`;
@@ -392,7 +399,7 @@ function viewScope() {
   }
   const res = searchSmart(q, sf);
   const num = res.mode === 'numéro' || res.mode === 'article';
-  const sc = num ? [] : rankScen(res.q || q).filter(s => scenRoad(s) === road);
+  const sc = num ? [] : rankScen(res.q || q).filter(s => scenRoad(s) === road && scenIds(s).length);
   const mm = num ? [] : rankMem(res.q || q);
   const other = num ? 0 : countOther(res.q || q, road);
   const otherBtn = other ? `<button class="more" data-scope="${road ? 'general' : 'routier'}">${other.toLocaleString('fr-FR')} résultat${other > 1 ? 's' : ''} aussi dans « ${road ? 'Général' : 'Routier'} »</button>` : '';
@@ -536,19 +543,24 @@ function viewDetail(num) {
 function viewCat(i) {
   const c = CATS[i];
   if (!c) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Catégorie introuvable.</div>`;
-  return `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${c[1]} ${esc(c[0])}</h2><div class="grid">${SCEN.filter(s => s.cat === c[0]).map(s => scenCard(s)).join('')}</div>`;
+  const ss = SCEN.filter(s => s.cat === c[0] && scenIds(s).length);
+  return `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${c[1]} ${esc(c[0])}</h2>${ROAD_CATS.has(c[0]) ? volBanner() : ''}` +
+    (ss.length ? `<div class="grid">${ss.map(s => scenCard(s)).join('')}</div>` : `<div class="empty">Aucune situation ne correspond au filtre.</div>`);
 }
 function viewScenario(id) {
   const s = SCEN_BY.get(id);
   if (!s) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Situation introuvable.</div>`;
   let h = `<button class="back" data-back="1">‹ Retour</button><div class="chip nat-o">${esc(s.cat)}</div>
-  <div class="dlib" style="margin-top:8px">${esc(s.title)}</div><p class="hint" style="margin-top:-6px">${esc(s.desc)}</p>`;
+  <div class="dlib" style="margin-top:8px">${s.ico ? s.ico + ' ' : ''}${esc(s.title)}</div><p class="hint" style="margin-top:-6px">${esc(s.desc)}</p>`;
   if (s.check && s.check.length) h += `<div class="box"><h3>À vérifier / à faire <span class="tag">Indicatif – à valider</span></h3><ul>${s.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>`;
   const label = {principal: 'Infractions à retenir', associee: 'Infractions souvent associées', aggravante: 'Cas aggravés'};
+  if (scenRoad(s)) h += volBanner();
   s.groups.forEach(g => {
-    if (!g.ids.length) return;
-    h += `<h2>${esc(g.title)}</h2><div class="list">${g.ids.filter(n => IDX.has(n)).map(n => card(IDX.get(n))).join('')}</div>`;
+    const ids = volOn(s) ? g.ids.filter(isVol) : g.ids;
+    if (!ids.length) return;
+    h += `<h2>${esc(g.title)}</h2><div class="list">${ids.filter(n => IDX.has(n)).map(n => card(IDX.get(n))).join('')}</div>`;
   });
+  if (volOn(s) && !scenIds(s).length) h += `<div class="empty">Aucune infraction de cette situation n'est relevable à la volée.</div>`;
   if (s.q) h += `<button class="more" data-sq="${esc(s.q)}">Voir toutes les infractions « ${esc(s.q)} »</button>`;
   h += `<p class="legal">Sélection d'aide à la qualification : elle ne remplace ni l'analyse des faits ni la vérification des textes. Pour une qualification précise, utilisez aussi la recherche par mot, numéro ou article.</p>`;
   return h;
@@ -556,7 +568,7 @@ function viewScenario(id) {
 function viewAbout() {
   return `<button class="back" data-back="1">‹ Retour</button>
   <div class="dlib">À propos et limites</div>
-  <div class="box"><h3>Version</h3><b>NATINFLEX 0.8</b> – données NATINF édition ${esc(D.meta.edition)}</div>
+  <div class="box"><h3>Version</h3><b>NATINFLEX 1.2</b> – données NATINF édition ${esc(D.meta.edition)}</div>
   <div class="box"><h3>Source des données</h3>Nomenclature NATINF « Liste des infractions en vigueur » – Ministère de la Justice (data.gouv.fr), <b>Licence Ouverte 2.0</b>. Édition ${esc(D.meta.edition)} : <b>${D.meta.count.toLocaleString('fr-FR')}</b> infractions. Numéro, nature, libellé et articles viennent tels quels de ce fichier.</div>
   <div class="box"><h3>Ce qui n'est pas dans le fichier officiel</h3>Les <b>points</b>, la <b>rétention</b>, la <b>suspension</b>, la <b>confiscation</b>, le <b>dépistage</b>, l'<b>immobilisation</b>, les <b>peines</b> des principaux délits et les listes de « à vérifier » ont été ajoutés pour faciliter le travail. Ils sont signalés <span class="tag">Indicatif – à valider</span> : ils doivent être relus et validés par une personne compétente avant tout usage opérationnel.</div>
   <div class="box"><h3>Utilisation</h3><ul>
@@ -606,7 +618,7 @@ $('#title').addEventListener('click', () => { if (location.hash !== '#/') locati
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('on'), 1800); }
 function applyTheme(t) { if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); store.set('theme', t); }
 main.addEventListener('click', e => {
-  const t = e.target.closest('[data-n],[data-s],[data-m],[data-mp],[data-mg],[data-cat],[data-fam],[data-sq],[data-back],[data-go],[data-filter],[data-ex],[data-more],[data-copy],[data-fav],[data-theme],[data-scope]');
+  const t = e.target.closest('[data-n],[data-s],[data-m],[data-mp],[data-mg],[data-cat],[data-fam],[data-sq],[data-back],[data-go],[data-filter],[data-ex],[data-more],[data-copy],[data-fav],[data-theme],[data-scope],[data-volee]');
   if (!t) return;
   const d = t.dataset;
   if (d.m) { memPage = -1; go('#/m/' + d.m); }
@@ -618,6 +630,7 @@ main.addEventListener('click', e => {
   else if (d.sq) { const sid = (location.hash.match(/^#\/s\/([\w-]+)/) || [])[1], sn = sid && SCEN_BY.get(sid); state.tab = sn && !scenRoad(sn) ? 'general' : 'routier'; store.set('tab', state.tab); state.filter = 'tous'; state.q = d.sq; qEl.value = d.sq; clr.hidden = false; state.shown = 40; lastScroll = 0; go('#/'); }
   else if (d.back) { if (history.length > 1 && window.__navDepth > 0) history.go(-1 - (window.__memPush || 0)); else location.hash = '#/'; }
   else if (d.go) { state.tab = d.go; store.set('tab', state.tab); renderList(); window.scrollTo(0, 0); }
+  else if (d.volee !== undefined) { state.volee = d.volee === '1'; store.set('volee', state.volee); state.filter = 'tous'; route(); }
   else if (d.scope) { state.tab = d.scope; store.set('tab', state.tab); state.shown = 40; renderList(); window.scrollTo(0, 0); }
   else if (d.filter) { state.filter = d.filter; state.shown = 40; renderList(); }
   else if (d.ex) { qEl.value = d.ex; state.q = d.ex; clr.hidden = false; renderList(); window.scrollTo(0, 0); }
