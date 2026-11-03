@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta name="robots" content="noindex,nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#061a44">
+<meta name="description" content="Aide à la qualification des infractions routières : recherche NATINF par mot ou par situation, hors ligne.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>NATINFLEX</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="bar">
+      <h1 id="title">Natin<span>flex</span></h1>
+      <button id="btnAbout" class="icon" aria-label="À propos et limites">i</button>
+    </div>
+    <div class="searchwrap">
+      <input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"
+             placeholder="Mot, n° NATINF, article ou situation…" aria-label="Recherche">
+      <button id="clear" class="icon ghost" aria-label="Effacer" hidden>✕</button>
+    </div>
+    <nav id="tabs" role="tablist">
+      <button role="tab" data-tab="routier" aria-selected="true">🚗 Routier</button>
+      <button role="tab" data-tab="general" aria-selected="false">⚖️ Général</button>
+      <button role="tab" data-tab="mementos" aria-selected="false">Mementos</button>
+      <button role="tab" data-tab="favoris" aria-selected="false">★</button>
+    </nav>
+  </header>
+  <main id="main" tabindex="-1"></main>
+  <div id="loading" class="loading"><img src="icon-192.png" alt="" width="96" height="96"><br>Chargement…</div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>
