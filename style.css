@@ -167,3 +167,8 @@ mark{background:#ffd24d;color:#111;border-radius:3px;padding:0 1px}
 .tile.volee{background:#dff3ff;color:#075985}
 :root[data-theme="dark"] .chip.volee,:root[data-theme="dark"] .tile.volee{background:#0e2a44;color:#8ccbff}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip.volee,:root:not([data-theme="light"]) .tile.volee{background:#0e2a44;color:#8ccbff}}
+
+.grid.shortcuts{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px}
+.scard.sc{border:2px solid var(--line,#d6dbe6)}
+.scard.sc.on{background:var(--brand,#0b3d91);color:#fff;border-color:var(--brand,#0b3d91)}
+.scard.sc.on small,.scard.sc.on b{color:#fff}

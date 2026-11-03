@@ -68,7 +68,7 @@ function fmt(s) {
 /* ---------- normalisation / recherche ---------- */
 const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/['’]/g, ' ').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 const STOP = new Set('le la les l d de du des un une en au aux et ou a pour par sur dans qui que ce il elle est ils elles on y se sa son ses mon ma ne pas plus tres avec volant lui cela ca je tu nous vous'.split(' '));
-let SYN = new Map(), REN = new Map(), EXPR = [], CATS = [], VOCAB = null;
+let SYN = new Map(), REN = new Map(), EXPR = [], CATS = [], VOCAB = null, FAM = [];
 const stem = t => (t.length > 3 && /[sx]$/.test(t) && !/ss$/.test(t)) ? t.slice(0, -1) : t;
 function initSyn(sy) {
   SYN = new Map(); REN = new Map();
@@ -324,6 +324,22 @@ function catTiles(road) {
   return `<div class="grid cats">${CATS.map(([name, ico], i) => { if (road !== undefined && ROAD_CATS.has(name) !== road) return ''; const n = SCEN.filter(s => s.cat === name).length;
     return n ? `<button class="scard cat" data-cat="${i}"><span class="ico">${ico}</span><b>${esc(name)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('')}</div>`;
 }
+function famTiles() {
+  return `<div class="grid cats">${FAM.map(([name, ico, cats], i) => { const n = SCEN.filter(s => cats.includes(s.cat)).length;
+    return n ? `<button class="scard cat" data-fam="${i}"><span class="ico">${ico}</span><b>${esc(name)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('')}</div>`;
+}
+function viewFam(i) {
+  const f = FAM[i];
+  if (!f) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Famille introuvable.</div>`;
+  let h = `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${f[1]} ${esc(f[0])}</h2>`;
+  f[2].forEach(c => {
+    const ss = SCEN.filter(s => s.cat === c); if (!ss.length) return;
+    const ico = (CATS.find(x => x[0] === c) || [])[1] || '';
+    if (f[2].length > 1) h += `<h2>${ico} ${esc(c)}</h2>`;
+    h += `<div class="grid">${ss.map(s => scenCard(s)).join('')}</div>`;
+  });
+  return h;
+}
 function scenCard(s, big) {
   const n = s.groups.reduce((a, g) => a + g.ids.length, 0);
   return `<button class="scard ${big ? 'big' : ''}" data-s="${s.id}"><b>${esc(s.title)}</b><small>${esc(s.cat)} · ${n} NATINF</small></button>`;
@@ -342,11 +358,21 @@ function countOther(q, road) {
 function viewScope() {
   const road = state.tab !== 'general';
   const q = state.q.trim();
-  const chips = road ? [['tous', 'Tous'], ['contra', 'Contraventions'], ['delit', 'Délits'], ['volee', '🚗 À la volée']]
-                     : [['tous', 'Tous'], ['contra', 'Contraventions'], ['delit', 'Délits'], ['crime', 'Crimes']];
-  if (!chips.some(c => c[0] === state.filter)) state.filter = 'tous';
-  let html = `<div class="grid" style="grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">${chips.map(([k, l]) =>
-    `<button class="btn ${state.filter === k ? 'primary' : ''}" style="padding:10px 2px;font-size:13px" data-filter="${k}">${l}</button>`).join('')}</div>`;
+  if (!['tous', 'volee', 'points'].includes(state.filter) || (!road && state.filter !== 'tous')) state.filter = 'tous';
+  const sc4 = road ? [['volee', '🚗', 'À la volée', 'sans interception'], ['points', '🎯', 'Barème des points', 'par nombre de points']] : [];
+  let html = !sc4.length ? '' : `<div class="grid shortcuts">${sc4.map(([k, ico, l, sub]) =>
+    `<button class="scard sc ${state.filter === k ? 'on' : ''}" data-filter="${state.filter === k ? 'tous' : k}"><span class="ico">${ico}</span><b>${l}</b><small>${sub}</small></button>`).join('')}</div>`;
+  const sf = state.filter === 'volee' ? 'volee' : 'tous';
+  if (!q && state.filter === 'points') {
+    const groups = new Map(); const grave = [];
+    ROWS.forEach((r, i) => { const e = E[r[F_NUM]]; if (!e || !(e.pts > 0) || r[F_ROAD] !== 1) return;
+      if (/^(HOMICIDE|BLESSURES)/.test(r[F_LIB])) grave.push(i); else { if (!groups.has(e.pts)) groups.set(e.pts, []); groups.get(e.pts).push(i); } });
+    html += `<p class="hint">Infractions routières avec retrait de points, classées par nombre de points. Les retraits peuvent se cumuler dans la limite de 8 points. <span class="tag">Indicatif – à valider</span></p>`;
+    [...groups.keys()].sort((x, y) => y - x).forEach(p => {
+      html += `<h2>${p} point${p > 1 ? 's' : ''} <small style="font-weight:400">(${groups.get(p).length})</small></h2><div class="list">${groups.get(p).map(i => card(i)).join('')}</div>`; });
+    if (grave.length) html += `<h2>Homicides et blessures routières <small style="font-weight:400">(${grave.length})</small></h2><p class="hint">Délits avec retrait de 6 points : voir la fiche de chaque infraction.</p><div class="list">${grave.map(i => card(i)).join('')}</div>`;
+    return html;
+  }
   if (!q && state.filter === 'volee') {
     const all = []; ROWS.forEach((r, i) => { const v = E[r[F_NUM]] && E[r[F_NUM]].volee; if (v) all.push([v.topic, i]); });
     html += `<p class="hint">Infractions pouvant être relevées <b>sans interception du conducteur</b> (liste R.121-6 du Code de la route, avec redevabilité pécuniaire du titulaire du certificat d'immatriculation – L.121-3). <span class="tag">Indicatif – à valider</span></p>`;
@@ -358,13 +384,13 @@ function viewScope() {
     html += road
       ? `<p class="hint"><b>Infractions routières.</b> Choisissez une situation de contrôle, ou cherchez par <b>mot</b> (« sans permis », « tuning »), <b>numéro NATINF</b> (« 1247 ») ou <b>article</b> (« L234-1 »). Hors ligne.</p>`
       : `<p class="hint"><b>Infractions générales</b> (hors Code de la route : personnes, biens, stupéfiants, armes, ordre public…). Choisissez une situation, ou cherchez par <b>mot</b> (« baston », « dealer »), <b>numéro NATINF</b> ou <b>article</b> (« 222-13 »). Hors ligne.</p>`;
-    html += `<h2>Situations par catégorie</h2>` + catTiles(road);
+    html += road ? `<h2>Situations par catégorie</h2>` + catTiles(true) : `<h2>Situations par famille</h2>` + famTiles();
     const freq = road ? ['tuning', 'sans permis', 'alcool', 'téléphone', 'ceinture', 'plaque', 'stationnement gênant', "refus d'obtempérer", 'trottinette', 'plaque étrangère']
-                      : ['baston', 'dealer', 'vol', 'menaces', 'arme', 'squat', 'tapage', 'outrage', 'protoxyde', 'graffiti'];
+                      : ['baston', 'dealer', 'vol', 'menaces', 'arme', 'squat', 'tapage', 'outrage', 'protoxyde', 'travail dissimulé', 'débit de boissons'];
     html += `<h2>Recherches fréquentes</h2><div class="grid">${freq.map(x => `<button class="scard" data-ex="${esc(x)}"><b>${esc(x)}</b></button>`).join('')}</div>`;
     return html;
   }
-  const res = searchSmart(q, state.filter);
+  const res = searchSmart(q, sf);
   const num = res.mode === 'numéro' || res.mode === 'article';
   const sc = num ? [] : rankScen(res.q || q).filter(s => scenRoad(s) === road);
   const mm = num ? [] : rankMem(res.q || q);
@@ -374,7 +400,7 @@ function viewScope() {
   if (sc.length) html += `<h2>Situations correspondantes</h2><div class="list" style="margin-bottom:12px">${sc.slice(0, 4).map(s => scenCard(s, true)).join('')}</div>`;
   if (mm.length) html += `<h2>Mementos</h2><div class="list" style="margin-bottom:12px">${mm.slice(0, 3).map(memCard).join('')}</div>`;
   if (!res.list.length) {
-    if (!sc.length && !mm.length) html += `<div class="empty">Aucun NATINF trouvé pour « ${esc(q)} »${state.filter !== 'tous' ? ' avec ce filtre' : ''} dans « ${road ? 'Routier' : 'Général'} ».</div>`;
+    if (!sc.length && !mm.length) html += `<div class="empty">Aucun NATINF trouvé pour « ${esc(q)} »${sf !== 'tous' ? ' avec ce filtre' : ''} dans « ${road ? 'Routier' : 'Général'} ».</div>`;
     return html + otherBtn;
   }
   html += `<h2>Infractions${res.mode === 'approchant' ? ' (approchant)' : ''}</h2><p class="hint">${res.list.length.toLocaleString('fr-FR')} résultat${res.list.length > 1 ? 's' : ''}${res.mode === 'article' ? ' pour cet article' : ''}</p>`;
@@ -530,7 +556,7 @@ function viewScenario(id) {
 function viewAbout() {
   return `<button class="back" data-back="1">‹ Retour</button>
   <div class="dlib">À propos et limites</div>
-  <div class="box"><h3>Version</h3><b>NATINFLEX 0.6</b> – données NATINF édition ${esc(D.meta.edition)}</div>
+  <div class="box"><h3>Version</h3><b>NATINFLEX 0.8</b> – données NATINF édition ${esc(D.meta.edition)}</div>
   <div class="box"><h3>Source des données</h3>Nomenclature NATINF « Liste des infractions en vigueur » – Ministère de la Justice (data.gouv.fr), <b>Licence Ouverte 2.0</b>. Édition ${esc(D.meta.edition)} : <b>${D.meta.count.toLocaleString('fr-FR')}</b> infractions. Numéro, nature, libellé et articles viennent tels quels de ce fichier.</div>
   <div class="box"><h3>Ce qui n'est pas dans le fichier officiel</h3>Les <b>points</b>, la <b>rétention</b>, la <b>suspension</b>, la <b>confiscation</b>, le <b>dépistage</b>, l'<b>immobilisation</b>, les <b>peines</b> des principaux délits et les listes de « à vérifier » ont été ajoutés pour faciliter le travail. Ils sont signalés <span class="tag">Indicatif – à valider</span> : ils doivent être relus et validés par une personne compétente avant tout usage opérationnel.</div>
   <div class="box"><h3>Utilisation</h3><ul>
@@ -550,11 +576,12 @@ function route() {
   if ((m = h.match(/^#\/n\/(\d+)/))) { top.hidden = true; main.innerHTML = viewDetail(parseInt(m[1], 10)); window.scrollTo(0, 0); document.title = 'NATINF ' + m[1]; }
   else if ((m = h.match(/^#\/s\/([\w-]+)/))) { top.hidden = true; main.innerHTML = viewScenario(m[1]); window.scrollTo(0, 0); }
   else if ((m = h.match(/^#\/m\/([\w-]+)/))) { top.hidden = true; window.__memPush = 0; main.innerHTML = viewMemento(m[1]); window.scrollTo(0, 0); try { history.replaceState({ mp: memPage }, '', location.href); } catch (_) {} }
+  else if ((m = h.match(/^#\/f\/(\d+)/))) { top.hidden = true; main.innerHTML = viewFam(parseInt(m[1], 10)); window.scrollTo(0, 0); }
   else if ((m = h.match(/^#\/c\/(\d+)/))) { top.hidden = true; main.innerHTML = viewCat(parseInt(m[1], 10)); window.scrollTo(0, 0); }
   else if (h.startsWith('#/about')) { top.hidden = true; main.innerHTML = viewAbout(); window.scrollTo(0, 0); }
   else { document.title = 'NATINFLEX'; renderList(); window.scrollTo(0, lastScroll); }
 }
-function go(hash) { if (/^#\/(n|s|c|m|about)/.test(hash)) lastScroll = window.scrollY; location.hash = hash; }
+function go(hash) { if (/^#\/(n|s|c|f|m|about)/.test(hash)) lastScroll = window.scrollY; location.hash = hash; }
 window.addEventListener('hashchange', route);
 
 /* ---------- événements ---------- */
@@ -579,7 +606,7 @@ $('#title').addEventListener('click', () => { if (location.hash !== '#/') locati
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('on'), 1800); }
 function applyTheme(t) { if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); store.set('theme', t); }
 main.addEventListener('click', e => {
-  const t = e.target.closest('[data-n],[data-s],[data-m],[data-mp],[data-mg],[data-cat],[data-sq],[data-back],[data-go],[data-filter],[data-ex],[data-more],[data-copy],[data-fav],[data-theme],[data-scope]');
+  const t = e.target.closest('[data-n],[data-s],[data-m],[data-mp],[data-mg],[data-cat],[data-fam],[data-sq],[data-back],[data-go],[data-filter],[data-ex],[data-more],[data-copy],[data-fav],[data-theme],[data-scope]');
   if (!t) return;
   const d = t.dataset;
   if (d.m) { memPage = -1; go('#/m/' + d.m); }
@@ -587,6 +614,7 @@ main.addEventListener('click', e => {
   else if (d.n) go('#/n/' + d.n);
   else if (d.s) go('#/s/' + d.s);
   else if (d.cat) go('#/c/' + d.cat);
+  else if (d.fam) go('#/f/' + d.fam);
   else if (d.sq) { const sid = (location.hash.match(/^#\/s\/([\w-]+)/) || [])[1], sn = sid && SCEN_BY.get(sid); state.tab = sn && !scenRoad(sn) ? 'general' : 'routier'; store.set('tab', state.tab); state.filter = 'tous'; state.q = d.sq; qEl.value = d.sq; clr.hidden = false; state.shown = 40; lastScroll = 0; go('#/'); }
   else if (d.back) { if (history.length > 1 && window.__navDepth > 0) history.go(-1 - (window.__memPush || 0)); else location.hash = '#/'; }
   else if (d.go) { state.tab = d.go; store.set('tab', state.tab); renderList(); window.scrollTo(0, 0); }
@@ -615,7 +643,7 @@ window.addEventListener('hashchange', () => { window.__navDepth = Math.min(windo
 
 /* ---------- démarrage ---------- */
 function start(data) {
-  D = data; GL = Object.entries(D.glossaire || {}).sort((a, b) => b[0].length - a[0].length).map(([mn, v]) => [mn, v[0], v[1], new RegExp('(^|\\s)' + mn.replace(/[.&]/g, '\\$&') + '(?=[\\s.]|$)')]); MEM = D.mem || []; MEM.forEach(m => { MEM_BY.set(m.id, m); m._t = ' ' + norm(m.title + ' ' + m.kw + ' ' + m.desc) + ' '; }); ROWS = D.rows; NAT = D.nature; initSyn(D.syn); CATS = D.cats || []; E = D.enrich; SCEN = D.scen;
+  D = data; GL = Object.entries(D.glossaire || {}).sort((a, b) => b[0].length - a[0].length).map(([mn, v]) => [mn, v[0], v[1], new RegExp('(^|\\s)' + mn.replace(/[.&]/g, '\\$&') + '(?=[\\s.]|$)')]); MEM = D.mem || []; MEM.forEach(m => { MEM_BY.set(m.id, m); m._t = ' ' + norm(m.title + ' ' + m.kw + ' ' + m.desc) + ' '; }); ROWS = D.rows; NAT = D.nature; initSyn(D.syn); CATS = D.cats || []; FAM = D.fam || []; E = D.enrich; SCEN = D.scen;
   buildIndex();
   const th = store.get('theme', 'auto'); if (th !== 'auto') applyTheme(th);
   $('#loading').hidden = true;
