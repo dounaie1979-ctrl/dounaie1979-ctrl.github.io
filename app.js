@@ -260,7 +260,7 @@ function rankScen(q) {
   return out.map(x => x[1]);
 }
 
-const ROAD_CATS = new Set(['Alcool & stupéfiants', 'Permis & documents', 'Vitesse', 'Comportement', 'Accident', 'Stationnement', 'Véhicule', 'Tuning & bruit', 'Deux-roues & EDPM']);
+const ROAD_CATS = new Set(['Alcool & stupéfiants', 'Permis & documents', 'Vitesse', 'Comportement', 'Accident', 'Stationnement', 'Immatriculation & équipements', 'Tuning & bruit', 'Taxi / VTC', 'Deux-roues & EDPM']);
 const scenRoad = s => ROAD_CATS.has(s.cat);
 function rankMem(q) {
   const toks = tokens(q); if (!toks.length) return [];
@@ -568,7 +568,7 @@ function viewScenario(id) {
 function viewAbout() {
   return `<button class="back" data-back="1">‹ Retour</button>
   <div class="dlib">À propos et limites</div>
-  <div class="box"><h3>Version</h3><b>NATINFLEX 1.2</b> – données NATINF édition ${esc(D.meta.edition)}</div>
+  <div class="box"><h3>Version</h3><b>NATINFLEX 0.5</b> – données NATINF édition ${esc(D.meta.edition)}</div>
   <div class="box"><h3>Source des données</h3>Nomenclature NATINF « Liste des infractions en vigueur » – Ministère de la Justice (data.gouv.fr), <b>Licence Ouverte 2.0</b>. Édition ${esc(D.meta.edition)} : <b>${D.meta.count.toLocaleString('fr-FR')}</b> infractions. Numéro, nature, libellé et articles viennent tels quels de ce fichier.</div>
   <div class="box"><h3>Ce qui n'est pas dans le fichier officiel</h3>Les <b>points</b>, la <b>rétention</b>, la <b>suspension</b>, la <b>confiscation</b>, le <b>dépistage</b>, l'<b>immobilisation</b>, les <b>peines</b> des principaux délits et les listes de « à vérifier » ont été ajoutés pour faciliter le travail. Ils sont signalés <span class="tag">Indicatif – à valider</span> : ils doivent être relus et validés par une personne compétente avant tout usage opérationnel.</div>
   <div class="box"><h3>Utilisation</h3><ul>
