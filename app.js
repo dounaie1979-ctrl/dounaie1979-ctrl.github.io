@@ -261,7 +261,7 @@ function rankScen(q) {
   return out.map(x => x[1]);
 }
 
-const ROAD_CATS = new Set(['Alcool & stupéfiants', 'Permis & documents', 'Vitesse', 'Comportement', 'Accident', 'Stationnement', 'Immatriculation & équipements', 'Tuning & bruit', 'Taxi / VTC', 'Deux-roues & EDPM', 'Autres infractions routières']);
+const ROAD_CATS = new Set(['Alcool & stupéfiants', 'Permis & documents', 'Vitesse', 'Comportement', 'Accident', 'Stationnement', 'Immatriculation & équipements', 'Tuning & bruit', 'Exercice & autorisations', 'Documents & contrôles', 'Équipement & signalétique', 'Tarifs & filouterie', 'Poids, dimensions & chargement', 'Licences & transport public', 'Temps de conduite & tachygraphe', 'Matières dangereuses (ADR)', 'Deux-roues motorisés & cycles', 'EDPM']);
 const scenRoad = s => ROAD_CATS.has(s.cat);
 function rankMem(q) {
   const toks = tokens(q); if (!toks.length) return [];
