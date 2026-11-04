@@ -245,6 +245,7 @@ function rankScen(q) {
   if (!toks.length) return [];
   const out = [];
   SCEN.forEach(s => {
+    if (s.cata) return;
     let sc = 0, hit = 0;
     for (const tk of toks) {
       let b = 0;
@@ -260,7 +261,7 @@ function rankScen(q) {
   return out.map(x => x[1]);
 }
 
-const ROAD_CATS = new Set(['Alcool & stupéfiants', 'Permis & documents', 'Vitesse', 'Comportement', 'Accident', 'Stationnement', 'Immatriculation & équipements', 'Tuning & bruit', 'Taxi / VTC', 'Deux-roues & EDPM']);
+const ROAD_CATS = new Set(['Alcool & stupéfiants', 'Permis & documents', 'Vitesse', 'Comportement', 'Accident', 'Stationnement', 'Immatriculation & équipements', 'Tuning & bruit', 'Taxi / VTC', 'Deux-roues & EDPM', 'Autres infractions routières']);
 const scenRoad = s => ROAD_CATS.has(s.cat);
 function rankMem(q) {
   const toks = tokens(q); if (!toks.length) return [];
@@ -558,7 +559,10 @@ function viewScenario(id) {
   s.groups.forEach(g => {
     const ids = volOn(s) ? g.ids.filter(isVol) : g.ids;
     if (!ids.length) return;
-    h += `<h2>${esc(g.title)}</h2><div class="list">${ids.filter(n => IDX.has(n)).map(n => card(IDX.get(n))).join('')}</div>`;
+    const cards = ids.filter(n => IDX.has(n)).map(n => card(IDX.get(n))).join('');
+    if (g.role === 'dossier') h += `<details class="vgrp"><summary>📁 ${esc(g.title)} <span class="vn">${ids.length}</span></summary><div class="list">${cards}</div></details>`;
+    else if (g.title.startsWith('Variantes')) h += `<details class="vgrp"><summary>${esc(g.title.replace(/^Variantes : /, 'Variantes et cas aggravés · '))} <span class="vn">${ids.length}</span></summary><div class="list">${cards}</div></details>`;
+    else h += `<h2>${esc(g.title)}</h2><div class="list">${cards}</div>`;
   });
   if (volOn(s) && !scenIds(s).length) h += `<div class="empty">Aucune infraction de cette situation n'est relevable à la volée.</div>`;
   if (s.q) h += `<button class="more" data-sq="${esc(s.q)}">Voir toutes les infractions « ${esc(s.q)} »</button>`;

@@ -174,3 +174,11 @@ mark{background:#ffd24d;color:#111;border-radius:3px;padding:0 1px}
 .scard.sc.on small,.scard.sc.on b{color:#fff}
 
 .sico{display:inline-block;margin-right:7px;font-size:18px;line-height:1;vertical-align:-1px}
+
+.vgrp{margin:10px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+.vgrp>summary{cursor:pointer;padding:12px 14px;font-size:14px;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px}
+.vgrp>summary::-webkit-details-marker{display:none}
+.vgrp>summary::before{content:"▸";margin-right:4px;color:var(--muted)}
+.vgrp[open]>summary::before{content:"▾"}
+.vgrp .vn{margin-left:auto;font-weight:700;color:var(--muted);font-size:12.5px}
+.vgrp .list{padding:0 8px 8px}
