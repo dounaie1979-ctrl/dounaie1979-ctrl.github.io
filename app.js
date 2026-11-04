@@ -245,7 +245,7 @@ function rankScen(q) {
   if (!toks.length) return [];
   const out = [];
   SCEN.forEach(s => {
-    if (s.cata) return;
+    if (s.cata || s.dup) return;
     let sc = 0, hit = 0;
     for (const tk of toks) {
       let b = 0;
@@ -262,7 +262,9 @@ function rankScen(q) {
 }
 
 const ROAD_CATS = new Set(['Alcool & stupéfiants', 'Permis & documents', 'Vitesse', 'Comportement', 'Accident', 'Stationnement', 'Immatriculation & équipements', 'Tuning & bruit', 'Exercice & autorisations', 'Documents & contrôles', 'Équipement & signalétique', 'Tarifs & filouterie', 'Poids, dimensions & chargement', 'Licences & transport public', 'Temps de conduite & tachygraphe', 'Matières dangereuses (ADR)', 'Deux-roues motorisés & cycles', 'EDPM']);
-const scenRoad = s => ROAD_CATS.has(s.cat);
+const cn = n => n.split('|')[0];
+const isRC = n => ROAD_CATS.has(cn(n));
+const scenRoad = s => isRC(s.cat);
 function rankMem(q) {
   const toks = tokens(q); if (!toks.length) return [];
   const out = [];
@@ -322,8 +324,8 @@ function memCard(m) {
   return `<button class="scard mem" data-m="${m.id}"><span class="ico">${m.icon}</span><b>${esc(m.title)}</b><small>${esc(m.desc)} · ${m.pages.length + 1} pages</small></button>`;
 }
 function catTiles(road) {
-  return `<div class="grid cats">${CATS.map(([name, ico], i) => { if (road !== undefined && ROAD_CATS.has(name) !== road) return ''; const n = SCEN.filter(s => s.cat === name).length;
-    return n ? `<button class="scard cat" data-cat="${i}"><span class="ico">${ico}</span><b>${esc(name)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('')}</div>`;
+  return `<div class="grid cats">${CATS.map(([name, ico], i) => { if (road !== undefined && isRC(name) !== road) return ''; const n = SCEN.filter(s => s.cat === name).length;
+    return n ? `<button class="scard cat" data-cat="${i}"><span class="ico">${ico}</span><b>${esc(cn(name))}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('')}</div>`;
 }
 function volBanner() {
   return state.volee ? `<div class="note info" style="margin:8px 0">🚗 Filtre « À la volée » actif : seules les infractions relevables sans interception sont affichées. <button class="btn" style="margin-left:6px" data-volee="0">Désactiver</button></div>` : '';
@@ -332,17 +334,17 @@ const isVol = n => !!(E[n] && E[n].volee);
 const volOn = s => !!(state.volee && (!s || scenRoad(s)));
 function scenIds(s) { const ids = s.groups.flatMap(g => g.ids); return volOn(s) ? ids.filter(isVol) : ids; }
 function famTiles(road) {
-  return `<div class="grid cats">${FAM.map(([name, ico, cats], i) => { if (ROAD_CATS.has(cats[0]) !== road) return ''; const n = SCEN.filter(s => cats.includes(s.cat) && scenIds(s).length).length;
+  return `<div class="grid cats">${FAM.map(([name, ico, cats], i) => { if (isRC(cats[0]) !== road) return ''; const n = SCEN.filter(s => cats.includes(s.cat) && scenIds(s).length).length;
     return n ? `<button class="scard cat" data-fam="${i}"><span class="ico">${ico}</span><b>${esc(name)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('')}</div>`;
 }
 function viewFam(i) {
   const f = FAM[i];
   if (!f) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Famille introuvable.</div>`;
-  let h = `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${f[1]} ${esc(f[0])}</h2>` + (ROAD_CATS.has(f[2][0]) ? volBanner() : '');
+  let h = `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${f[1]} ${esc(f[0])}</h2>` + (isRC(f[2][0]) ? volBanner() : '');
   if (f[2].length > 1) {   // plusieurs sous-catégories : tuiles à ouvrir
     const tiles = f[2].map(c => { const ci = CATS.findIndex(x => x[0] === c); if (ci < 0) return '';
       const n = SCEN.filter(s => s.cat === c && scenIds(s).length).length;
-      return n ? `<button class="scard cat" data-cat="${ci}"><span class="ico">${CATS[ci][1]}</span><b>${esc(c)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('');
+      return n ? `<button class="scard cat" data-cat="${ci}"><span class="ico">${CATS[ci][1]}</span><b>${esc(cn(c))}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('');
     return h + (tiles ? `<div class="grid cats">${tiles}</div>` : `<div class="empty">Aucune situation ne correspond au filtre.</div>`);
   }
   const ss = SCEN.filter(s => s.cat === f[2][0] && scenIds(s).length);
@@ -350,7 +352,7 @@ function viewFam(i) {
 }
 function scenCard(s, big) {
   const n = scenIds(s).length;
-  return `<button class="scard ${big ? 'big' : ''}" data-s="${s.id}"><b><span class="sico">${s.ico || ''}</span>${esc(s.title)}</b><small>${esc(s.cat)} · ${n} NATINF</small></button>`;
+  return `<button class="scard ${big ? 'big' : ''}" data-s="${s.id}"><b><span class="sico">${s.ico || ''}</span>${esc(s.title)}</b><small>${esc(cn(s.cat))} · ${n} NATINF</small></button>`;
 }
 
 /* ---------- état et vues ---------- */
@@ -536,7 +538,7 @@ function viewDetail(num) {
     if (sib.length) h += `<h2>Voir aussi (même article ${esc(r[F_PRIM])})</h2><div class="list">${sib.map(j => card(j)).join('')}</div>`;
   }
   // Scénarios liés
-  const sl = SCEN.filter(s => s.groups.some(g => g.ids.includes(num)));
+  const sl = SCEN.filter(s => !s.dup && s.groups.some(g => g.ids.includes(num)));
   if (sl.length) h += `<h2>Situations liées</h2><div class="list">${sl.map(s => scenCard(s, true)).join('')}</div>`;
   h += `<p class="legal">Aide à la qualification, <b>non opposable</b>. Vérifier systématiquement les textes en vigueur (Légifrance) avant de rédiger une procédure. Base NATINF : édition ${esc(D.meta.edition)}.</p>`;
   return h;
@@ -545,13 +547,13 @@ function viewCat(i) {
   const c = CATS[i];
   if (!c) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Catégorie introuvable.</div>`;
   const ss = SCEN.filter(s => s.cat === c[0] && scenIds(s).length);
-  return `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${c[1]} ${esc(c[0])}</h2>${ROAD_CATS.has(c[0]) ? volBanner() : ''}` +
+  return `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${c[1]} ${esc(cn(c[0]))}</h2>${isRC(c[0]) ? volBanner() : ''}` +
     (ss.length ? `<div class="grid">${ss.map(s => scenCard(s)).join('')}</div>` : `<div class="empty">Aucune situation ne correspond au filtre.</div>`);
 }
 function viewScenario(id) {
   const s = SCEN_BY.get(id);
   if (!s) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Situation introuvable.</div>`;
-  let h = `<button class="back" data-back="1">‹ Retour</button><div class="chip nat-o">${esc(s.cat)}</div>
+  let h = `<button class="back" data-back="1">‹ Retour</button><div class="chip nat-o">${esc(cn(s.cat))}</div>
   <div class="dlib" style="margin-top:8px">${s.ico ? s.ico + ' ' : ''}${esc(s.title)}</div><p class="hint" style="margin-top:-6px">${esc(s.desc)}</p>`;
   if (s.check && s.check.length) h += `<div class="box"><h3>À vérifier / à faire <span class="tag">Indicatif – à valider</span></h3><ul>${s.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>`;
   const label = {principal: 'Infractions à retenir', associee: 'Infractions souvent associées', aggravante: 'Cas aggravés'};
