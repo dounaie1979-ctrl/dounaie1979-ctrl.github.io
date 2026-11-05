@@ -182,3 +182,6 @@ mark{background:#ffd24d;color:#111;border-radius:3px;padding:0 1px}
 .vgrp[open]>summary::before{content:"▾"}
 .vgrp .vn{margin-left:auto;font-weight:700;color:var(--muted);font-size:12.5px}
 .vgrp .list{padding:0 8px 8px}
+.memrow{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.memlink{display:inline-block;background:var(--brand-soft);color:var(--brand);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;text-decoration:none}
+a.inl{color:var(--brand);font-weight:600;text-decoration:underline}

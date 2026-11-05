@@ -555,7 +555,10 @@ function viewScenario(id) {
   if (!s) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Situation introuvable.</div>`;
   let h = `<button class="back" data-back="1">‹ Retour</button><div class="chip nat-o">${esc(cn(s.cat))}</div>
   <div class="dlib" style="margin-top:8px">${s.ico ? s.ico + ' ' : ''}${esc(s.title)}</div><p class="hint" style="margin-top:-6px">${esc(s.desc)}</p>`;
-  if (s.check && s.check.length) h += `<div class="box"><h3>À vérifier / à faire <span class="tag">Indicatif – à valider</span></h3><ul>${s.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>`;
+  const mems = (s.mem || []).filter(x => MEM_BY.has(x));
+  const chk = c => { let t = esc(c); if (mems.length && /memento « Identifier une arme »/.test(c)) t = t.replace('memento « Identifier une arme »', `<a class="inl" href="#/m/${mems[0]}">memento « Identifier une arme »</a>`); return `<li>${t}</li>`; };
+  if (s.check && s.check.length) h += `<div class="box"><h3>À vérifier / à faire <span class="tag">Indicatif – à valider</span></h3><ul>${s.check.map(chk).join('')}</ul></div>`;
+  if (mems.length) h += `<div class="memrow">${mems.map(x => `<a class="memlink" href="#/m/${x}">📖 Memento : ${esc(MEM_BY.get(x).title)}</a>`).join('')}</div>`;
   const label = {principal: 'Infractions à retenir', associee: 'Infractions souvent associées', aggravante: 'Cas aggravés'};
   if (scenRoad(s)) h += volBanner();
   s.groups.forEach(g => {
