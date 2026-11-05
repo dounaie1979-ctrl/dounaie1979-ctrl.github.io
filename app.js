@@ -577,7 +577,7 @@ function viewScenario(id) {
 function viewAbout() {
   return `<button class="back" data-back="1">‹ Retour</button>
   <div class="dlib">À propos et limites</div>
-  <div class="box"><h3>Version</h3><b>NATINFLEX 0.5</b> – données NATINF édition ${esc(D.meta.edition)}</div>
+  <div class="box"><h3>Version</h3><b>NATINFLEX 0.6</b> – données NATINF édition ${esc(D.meta.edition)}</div>
   <div class="box"><h3>Source des données</h3>Nomenclature NATINF « Liste des infractions en vigueur » – Ministère de la Justice (data.gouv.fr), <b>Licence Ouverte 2.0</b>. Édition ${esc(D.meta.edition)} : <b>${D.meta.count.toLocaleString('fr-FR')}</b> infractions. Numéro, nature, libellé et articles viennent tels quels de ce fichier.</div>
   <div class="box"><h3>Ce qui n'est pas dans le fichier officiel</h3>Les <b>points</b>, la <b>rétention</b>, la <b>suspension</b>, la <b>confiscation</b>, le <b>dépistage</b>, l'<b>immobilisation</b>, les <b>peines</b> des principaux délits et les listes de « à vérifier » ont été ajoutés pour faciliter le travail. Ils sont signalés <span class="tag">Indicatif – à valider</span> : ils doivent être relus et validés par une personne compétente avant tout usage opérationnel.</div>
   <div class="box"><h3>Utilisation</h3><ul>
@@ -590,13 +590,23 @@ function viewAbout() {
 }
 
 /* ---------- routeur ---------- */
+function stampNav() {   // numérote chaque entrée d'historique de l'application (0 = première page ouverte)
+  try {
+    const st = history.state;
+    if (st && typeof st.i === 'number') window.__i = st.i;
+    else { window.__i = window.__started ? (window.__i || 0) + 1 : 0; history.replaceState(Object.assign({}, st || {}, { i: window.__i }), '', location.href); }
+    window.__started = true;
+  } catch (_) { window.__i = window.__started ? (window.__i || 0) + 1 : 0; window.__started = true; }
+}
 function route() {
+  stampNav();
   const h = location.hash || '#/';
+  if (!/^#\/m\//.test(h)) window.__memPush = 0;
   let m;
   const top = $('#tabs');
   if ((m = h.match(/^#\/n\/(\d+)/))) { top.hidden = true; main.innerHTML = viewDetail(parseInt(m[1], 10)); window.scrollTo(0, 0); document.title = 'NATINF ' + m[1]; }
   else if ((m = h.match(/^#\/s\/([\w-]+)/))) { top.hidden = true; main.innerHTML = viewScenario(m[1]); window.scrollTo(0, 0); }
-  else if ((m = h.match(/^#\/m\/([\w-]+)/))) { top.hidden = true; window.__memPush = 0; main.innerHTML = viewMemento(m[1]); window.scrollTo(0, 0); try { history.replaceState({ mp: memPage }, '', location.href); } catch (_) {} }
+  else if ((m = h.match(/^#\/m\/([\w-]+)/))) { top.hidden = true; window.__memPush = 0; main.innerHTML = viewMemento(m[1]); window.scrollTo(0, 0); try { history.replaceState({ mp: memPage, i: window.__i }, '', location.href); } catch (_) {} }
   else if ((m = h.match(/^#\/f\/(\d+)/))) { top.hidden = true; main.innerHTML = viewFam(parseInt(m[1], 10)); window.scrollTo(0, 0); }
   else if ((m = h.match(/^#\/c\/(\d+)/))) { top.hidden = true; main.innerHTML = viewCat(parseInt(m[1], 10)); window.scrollTo(0, 0); }
   else if (h.startsWith('#/about')) { top.hidden = true; main.innerHTML = viewAbout(); window.scrollTo(0, 0); }
@@ -631,13 +641,13 @@ main.addEventListener('click', e => {
   if (!t) return;
   const d = t.dataset;
   if (d.m) { memPage = -1; go('#/m/' + d.m); }
-  else if (d.mp || d.mg) { const id = (location.hash.match(/^#\/m\/([\w-]+)/) || [])[1]; if (id && MEM_BY.has(id)) { memPage = d.mg !== undefined ? parseInt(d.mg, 10) : Math.max(0, memPage + parseInt(d.mp, 10)); main.innerHTML = viewMemento(id); window.scrollTo(0, 0); try { history.pushState({ mp: memPage }, '', location.href); window.__memPush = (window.__memPush || 0) + 1; } catch (_) {} } }
+  else if (d.mp || d.mg) { const id = (location.hash.match(/^#\/m\/([\w-]+)/) || [])[1]; if (id && MEM_BY.has(id)) { memPage = d.mg !== undefined ? parseInt(d.mg, 10) : Math.max(0, memPage + parseInt(d.mp, 10)); main.innerHTML = viewMemento(id); window.scrollTo(0, 0); try { history.pushState({ mp: memPage, i: window.__i }, '', location.href); window.__memPush = (window.__memPush || 0) + 1; } catch (_) {} } }
   else if (d.n) go('#/n/' + d.n);
   else if (d.s) go('#/s/' + d.s);
   else if (d.cat) go('#/c/' + d.cat);
   else if (d.fam) go('#/f/' + d.fam);
   else if (d.sq) { const sid = (location.hash.match(/^#\/s\/([\w-]+)/) || [])[1], sn = sid && SCEN_BY.get(sid); state.tab = sn && !scenRoad(sn) ? 'general' : 'routier'; store.set('tab', state.tab); state.filter = 'tous'; state.q = d.sq; qEl.value = d.sq; clr.hidden = false; state.shown = 40; lastScroll = 0; go('#/'); }
-  else if (d.back) { if (history.length > 1 && window.__navDepth > 0) history.go(-1 - (window.__memPush || 0)); else location.hash = '#/'; }
+  else if (d.back) { const now = Date.now(); if (now - (window.__backT || 0) < 450) return; window.__backT = now; if ((window.__i || 0) > 0) history.go(-1 - (window.__memPush || 0)); else if ((location.hash || '#/') !== '#/') location.hash = '#/'; }
   else if (d.go) { state.tab = d.go; store.set('tab', state.tab); renderList(); window.scrollTo(0, 0); }
   else if (d.volee !== undefined) { state.volee = d.volee === '1'; store.set('volee', state.volee); state.filter = 'tous'; route(); }
   else if (d.scope) { state.tab = d.scope; store.set('tab', state.tab); state.shown = 40; renderList(); window.scrollTo(0, 0); }
@@ -659,9 +669,7 @@ main.addEventListener('click', e => {
   }
   else if (d.theme) applyTheme(d.theme);
 });
-window.__navDepth = 0;
 window.addEventListener('popstate', e => { const id = (location.hash.match(/^#\/m\/([\w-]+)/) || [])[1]; if (id && MEM_BY.has(id) && e.state && typeof e.state.mp === 'number') { window.__memPush = Math.max(0, (window.__memPush || 0) - 1); memPage = e.state.mp; main.innerHTML = viewMemento(id); window.scrollTo(0, 0); } });
-window.addEventListener('hashchange', () => { window.__navDepth = Math.min(window.__navDepth + 1, 50); });
 
 /* ---------- démarrage ---------- */
 function start(data) {
