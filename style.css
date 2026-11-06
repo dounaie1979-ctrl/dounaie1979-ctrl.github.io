@@ -192,3 +192,5 @@ a.inl{color:var(--brand);font-weight:600;text-decoration:underline}
 .qual .qw{margin:4px 0;font-size:.9em}.qual .qs{font-size:.88em;margin-top:4px}
 .qual .qq{margin-top:6px;font-size:.88em}.qual .qq ul{margin:4px 0 0 18px;padding:0}.qual .qq li{margin:3px 0}
 @media (prefers-color-scheme:dark){.qual{background:#0f1b33;border-color:#2b4170;border-left-color:#4b8cff}}
+.chip.afd{background:#e8f0ff;color:#12408f;border:1px solid #9db8ef}
+@media (prefers-color-scheme:dark){.chip.afd{background:#14305f;color:#cfe0ff;border-color:#3b63a8}}

@@ -135,6 +135,8 @@ function search(q, filter) {
       case 'delit': return k === 5 || k === 7 || k === 9;
       case 'crime': return k === 6;
       case 'volee': return !!(E[r[F_NUM]] && E[r[F_NUM]].volee);
+      case 'afd': return !!(E[r[F_NUM]] && E[r[F_NUM]].afd);
+      case 'volee+afd': return !!(E[r[F_NUM]] && E[r[F_NUM]].volee && E[r[F_NUM]].afd);
       default: return true;
     }
   };
@@ -306,6 +308,7 @@ function badges(num, r) {
   };
   if (e.confiscation && e.confiscation.lvl) b.push(`<span class="chip ${e.confiscation.lvl === 'obl' ? 'red' : 'amb'}">${e.confiscation.lvl === 'obl' ? 'Confiscation oblig.' : 'Confiscation'}</span>`);
   if (e.volee) b.unshift('<span class="chip volee">À la volée</span>');
+  if (e.afd) { const a = afdOf(e.afd); if (a) b.unshift(`<span class="chip afd">AFD${a.m[1] ? ' ' + a.m[1].toLocaleString('fr-FR') + ' €' : ''}${a.f !== 'A' ? ' ?' : ''}</span>`); }
   add('retention', 'Rétention');
   add('depistage', 'Dépistage');
   add('immobilisation', 'Immobilisation');
@@ -331,8 +334,13 @@ function volBanner() {
   return state.volee ? `<div class="note info" style="margin:8px 0">🚗 Filtre « À la volée » actif : seules les infractions relevables sans interception sont affichées. <button class="btn" style="margin-left:6px" data-volee="0">Désactiver</button></div>` : '';
 }
 const isVol = n => !!(E[n] && E[n].volee);
+const isAfd = n => !!(E[n] && E[n].afd);
+const keepId = (s, n) => (!volOn(s) || isVol(n)) && (!state.afd || isAfd(n));
+function afdBanner() {
+  return state.afd ? `<div class="note info" style="margin:8px 0">🧾 Filtre « AFD » actif : seules les infractions pouvant faire l'objet d'une amende forfaitaire délictuelle sont affichées. <button class="btn" style="margin-left:6px" data-afd="0">Désactiver</button> <button class="btn" style="margin-left:6px" data-ex="afd">Liste des AFD</button></div>` : '';
+}
 const volOn = s => !!(state.volee && (!s || scenRoad(s)));
-function scenIds(s) { const ids = s.groups.flatMap(g => g.ids); return volOn(s) ? ids.filter(isVol) : ids; }
+function scenIds(s) { return s.groups.flatMap(g => g.ids).filter(n => keepId(s, n)); }
 function famTiles(road) {
   return `<div class="grid cats">${FAM.map(([name, ico, cats], i) => { if (isRC(cats[0]) !== road) return ''; const n = SCEN.filter(s => cats.includes(s.cat) && scenIds(s).length).length;
     return n ? `<button class="scard cat" data-fam="${i}"><span class="ico">${ico}</span><b>${esc(name)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('')}</div>`;
@@ -340,7 +348,7 @@ function famTiles(road) {
 function viewFam(i) {
   const f = FAM[i];
   if (!f) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Famille introuvable.</div>`;
-  let h = `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${f[1]} ${esc(f[0])}</h2>` + (isRC(f[2][0]) ? volBanner() : '');
+  let h = `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${f[1]} ${esc(f[0])}</h2>` + (isRC(f[2][0]) ? volBanner() : '') + afdBanner();
   if (f[2].length > 1) {   // plusieurs sous-catégories : tuiles à ouvrir
     const tiles = f[2].map(c => { const ci = CATS.findIndex(x => x[0] === c); if (ci < 0) return '';
       const n = SCEN.filter(s => s.cat === c && scenIds(s).length).length;
@@ -351,6 +359,23 @@ function viewFam(i) {
   return h + (ss.length ? `<div class="grid">${ss.map(s => scenCard(s)).join('')}</div>` : `<div class="empty">Aucune situation ne correspond au filtre.</div>`);
 }
 
+
+const AFD_FIAB = {A: 'Doctrine DACG', B: 'Sources concordantes', C: 'À confirmer'};
+const afdOf = id => (D.afd || []).find(a => a.id === id);
+const eur = x => x == null ? '—' : x.toLocaleString('fr-FR') + ' €';
+function afdTile(a) {
+  const rec = {oui: 'AFD possible en récidive', non: 'AFD exclue en récidive', '?': 'récidive : à vérifier'}[a.rec];
+  return `<div class="tile wide"><div class="k">Amende forfaitaire délictuelle (AFD)</div><div class="v"><b style="font-size:inherit">Minorée ${eur(a.m[0])} · forfaitaire ${eur(a.m[1])} · majorée ${eur(a.m[2])}</b><br>${esc(a.t)} (${esc(a.art)}) – ${esc(rec)}.<br><small>${esc(a.note)}</small><br><span class="tag">${esc(AFD_FIAB[a.f])}</span> <a class="inl" data-m="afd" href="#/m/afd">Mémento AFD : conditions et procédure</a></div></div>`;
+}
+function afdList() {
+  const L = D.afd || [];
+  let h = `<h2>Amendes forfaitaires délictuelles (AFD)</h2><p class="hint"><span class="tag">Indicatif – à valider</span> Délits pouvant être réglés par AFD, avec montants (minorée / forfaitaire / majorée). Fiabilité : <b>doctrine DACG</b> = doctrine d'emploi du Ministère de la Justice ; <b>sources concordantes</b> ; <b>à confirmer</b>. <a class="inl" data-m="afd" href="#/m/afd">Mémento : conditions et procédure</a></p>`;
+  L.forEach(a => {
+    const idx = a.nat.map(qIdx).filter(i => i !== undefined);
+    h += `<div class="qual"><b class="qt">${esc(a.t)}</b><div class="qf"><span class="tag">${esc(AFD_FIAB[a.f])}</span> ${esc(a.art)} · ${eur(a.m[0])} / <b>${eur(a.m[1])}</b> / ${eur(a.m[2])}</div><p class="qw">${esc(a.note)}</p>${idx.length ? `<div class="list" style="margin:6px 0">${idx.map(i => card(i)).join('')}</div>` : ''}</div>`;
+  });
+  return h;
+}
 /* ---------- assistant de qualification (hors ligne, indicatif) ---------- */
 let QRX = null, NUMI = null;
 function qualify(q) {
@@ -385,7 +410,7 @@ function scenCard(s, big) {
 }
 
 /* ---------- état et vues ---------- */
-const state = {volee: !!store.get('volee', false), tab: (t => (t === 'situations' || t === 'infractions') ? 'routier' : t)(store.get('tab', 'routier')), filter: 'tous', q: '', shown: 40};
+const state = {volee: !!store.get('volee', false), afd: !!store.get('afd', false), tab: (t => (t === 'situations' || t === 'infractions') ? 'routier' : t)(store.get('tab', 'routier')), filter: 'tous', q: '', shown: 40};
 let lastScroll = 0;
 const main = $('#main');
 
@@ -398,8 +423,11 @@ function viewScope() {
   const road = state.tab !== 'general';
   const q = state.q.trim();
   if (!['tous', 'volee', 'points'].includes(state.filter) || (!road && state.filter !== 'tous')) state.filter = 'tous';
-  let html = !road ? '' : `<div class="grid shortcuts"><button class="scard sc ${state.volee ? 'on' : ''}" data-volee="${state.volee ? 0 : 1}"><span class="ico">${state.volee ? '☑' : '☐'}</span><b>À la volée</b><small>${state.volee ? 'filtre actif : relevable sans interception' : 'ne montrer que les infractions relevables sans interception'}</small></button><button class="scard sc ${state.filter === 'points' ? 'on' : ''}" data-filter="${state.filter === 'points' ? 'tous' : 'points'}"><span class="ico">🎯</span><b>Barème des points</b><small>par nombre de points</small></button></div>`;
-  const sf = (road && (state.filter === 'volee' || state.volee)) ? 'volee' : 'tous';
+  const vBtn = `<button class="scard sc ${state.volee ? 'on' : ''}" data-volee="${state.volee ? 0 : 1}"><span class="ico">${state.volee ? '☑' : '☐'}</span><b>À la volée</b><small>${state.volee ? 'filtre actif : relevable sans interception' : 'ne montrer que les infractions relevables sans interception'}</small></button>`;
+  const aBtn = `<button class="scard sc ${state.afd ? 'on' : ''}" data-afd="${state.afd ? 0 : 1}"><span class="ico">${state.afd ? '☑' : '☐'}</span><b>AFD</b><small>${state.afd ? 'filtre actif : amende forfaitaire délictuelle' : 'ne montrer que les délits pouvant faire l\'objet d\'une AFD'}</small></button>`;
+  let html = `<div class="grid shortcuts">${road ? vBtn : ''}${aBtn}</div>`;
+  const wantV = road && (state.filter === 'volee' || state.volee);
+  const sf = state.afd ? (wantV ? 'volee+afd' : 'afd') : (wantV ? 'volee' : 'tous');
   if (!q && state.filter === 'points') {
     const groups = new Map(); const grave = [];
     ROWS.forEach((r, i) => { const e = E[r[F_NUM]]; if (!e || !(e.pts > 0) || r[F_ROAD] !== 1 || (state.volee && !e.volee)) return;
@@ -422,13 +450,14 @@ function viewScope() {
     html += road
       ? `<p class="hint"><b>Infractions routières.</b> Choisissez une situation de contrôle, ou cherchez par <b>mot</b> (« sans permis », « tuning »), <b>numéro NATINF</b> (« 1247 ») ou <b>article</b> (« L234-1 »). Hors ligne.</p>`
       : `<p class="hint"><b>Infractions générales</b> (hors Code de la route : personnes, biens, stupéfiants, armes, ordre public…). Choisissez une situation, ou cherchez par <b>mot</b> (« baston », « dealer »), <b>numéro NATINF</b> ou <b>article</b> (« 222-13 »). Hors ligne.</p>`;
-    html += (road ? volBanner() : '') + `<h2>Situations par famille</h2>` + famTiles(road);
+    html += (road ? volBanner() : '') + afdBanner() + `<h2>Situations par famille</h2>` + famTiles(road);
     if (road && state.volee) html += `<button class="more" data-filter="volee">Liste complète par rubrique (R.121-6)</button>`;
     const freq = road ? ['tuning', 'sans permis', 'alcool', 'téléphone', 'ceinture', 'plaque', 'stationnement gênant', "refus d'obtempérer", 'trottinette', 'plaque étrangère']
                       : ['baston', 'dealer', 'vol', 'menaces', 'arme', 'squat', 'tapage', 'outrage', 'protoxyde', 'travail dissimulé', 'débit de boissons'];
     html += `<h2>Recherches fréquentes</h2><div class="grid">${freq.map(x => `<button class="scard" data-ex="${esc(x)}"><b>${esc(x)}</b></button>`).join('')}</div>`;
     return html;
   }
+  if (/^(afd|amendes? forfaitaires?( delictuelles?)?|forfaitaires? delictuelles?)$/.test(norm(q))) return html + afdList();
   const res = searchSmart(q, sf);
   const num = res.mode === 'numéro' || res.mode === 'article';
   const sc = num ? [] : rankScen(res.q || q).filter(s => scenRoad(s) === road && scenIds(s).length);
@@ -548,6 +577,7 @@ function viewDetail(num) {
     const v = e.volee, it = String(v.item || '').replace('BIS', 'bis').replace('TER', 'ter');
     t.push(`<div class="tile volee wide"><div class="k">Constatable à la volée</div><div class="v">Peut être relevée <b style="font-size:inherit">sans interception du conducteur</b> (R.121-6${it ? ' ' + esc(it) : ''}, rubrique « ${esc(v.topic)} »). Conducteur non identifié : le titulaire du certificat d'immatriculation est redevable pécuniairement de l'amende (L.121-3)${v.red && v.red.length ? ' – NATINF « redevable » : ' + v.red.filter(x => IDX.has(x)).map(x => `<button class="chip volee" data-n="${x}">${x}</button>`).join(' ') : ''}.<br><small>Relever : plaque, lieu, date et heure, nature précise de l'infraction, éléments de preuve.</small></div></div>`);
   }
+  if (e.afd && afdOf(e.afd)) t.push(afdTile(afdOf(e.afd)));
   if (e.pts !== undefined) t.push(tile('Retrait de points', e.pts === null ? 'Non renseigné – voir barème' : (e.pts === 0 ? '<b>Aucun</b> retrait' : `<b>${e.pts}</b> point${e.pts > 1 ? 's' : ''}`), e.pts >= 6 ? 'obl' : e.pts >= 3 ? 'fac' : null));
   else if (road && (k <= 5)) t.push(tile('Retrait de points', 'Non renseigné dans cette version – voir barème officiel', null));
   if (k <= 4) t.push(tile('Amende', `Max ${AMAX[k]}${road && k <= 3 ? `<br>Forfaitaire courante : ${esc(e.forfait || FORF[k])}` : ''}`, null, false));
@@ -578,7 +608,7 @@ function viewCat(i) {
   const c = CATS[i];
   if (!c) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Catégorie introuvable.</div>`;
   const ss = SCEN.filter(s => s.cat === c[0] && scenIds(s).length);
-  return `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${c[1]} ${esc(cn(c[0]))}</h2>${isRC(c[0]) ? volBanner() : ''}` +
+  return `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${c[1]} ${esc(cn(c[0]))}</h2>${isRC(c[0]) ? volBanner() : ''}${afdBanner()}` +
     (ss.length ? `<div class="grid">${ss.map(s => scenCard(s)).join('')}</div>` : `<div class="empty">Aucune situation ne correspond au filtre.</div>`);
 }
 function viewScenario(id) {
@@ -592,15 +622,16 @@ function viewScenario(id) {
   if (mems.length) h += `<div class="memrow">${mems.map(x => `<a class="memlink" href="#/m/${x}">📖 Memento : ${esc(MEM_BY.get(x).title)}</a>`).join('')}</div>`;
   const label = {principal: 'Infractions à retenir', associee: 'Infractions souvent associées', aggravante: 'Cas aggravés'};
   if (scenRoad(s)) h += volBanner();
+  h += afdBanner();
   s.groups.forEach(g => {
-    const ids = volOn(s) ? g.ids.filter(isVol) : g.ids;
+    const ids = g.ids.filter(n => keepId(s, n));
     if (!ids.length) return;
     const cards = ids.filter(n => IDX.has(n)).map(n => card(IDX.get(n))).join('');
     if (g.role === 'dossier') h += `<details class="vgrp"><summary>📁 ${esc(g.title)} <span class="vn">${ids.length}</span></summary><div class="list">${cards}</div></details>`;
     else if (g.title.startsWith('Variantes')) h += `<details class="vgrp"><summary>${esc(g.title.replace(/^Variantes : /, 'Variantes et cas aggravés · '))} <span class="vn">${ids.length}</span></summary><div class="list">${cards}</div></details>`;
     else h += `<h2>${esc(g.title)}</h2><div class="list">${cards}</div>`;
   });
-  if (volOn(s) && !scenIds(s).length) h += `<div class="empty">Aucune infraction de cette situation n'est relevable à la volée.</div>`;
+  if ((volOn(s) || state.afd) && !scenIds(s).length) h += `<div class="empty">Aucune infraction de cette situation ne correspond au filtre actif (À la volée / AFD).</div>`;
   if (s.q) h += `<button class="more" data-sq="${esc(s.q)}">Voir toutes les infractions « ${esc(s.q)} »</button>`;
   h += `<p class="legal">Sélection d'aide à la qualification : elle ne remplace ni l'analyse des faits ni la vérification des textes. Pour une qualification précise, utilisez aussi la recherche par mot, numéro ou article.</p>`;
   return h;
@@ -687,7 +718,7 @@ $('#title').addEventListener('click', () => { if (location.hash !== '#/') locati
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('on'), 1800); }
 function applyTheme(t) { if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); store.set('theme', t); }
 main.addEventListener('click', e => {
-  const t = e.target.closest('[data-n],[data-s],[data-m],[data-mp],[data-mg],[data-cat],[data-fam],[data-sq],[data-back],[data-go],[data-filter],[data-ex],[data-more],[data-copy],[data-fav],[data-theme],[data-scope],[data-volee]');
+  const t = e.target.closest('[data-n],[data-s],[data-m],[data-mp],[data-mg],[data-cat],[data-fam],[data-sq],[data-back],[data-go],[data-filter],[data-ex],[data-more],[data-copy],[data-fav],[data-theme],[data-scope],[data-volee],[data-afd]');
   if (!t) return;
   const d = t.dataset;
   if (d.m) { memPage = -1; go('#/m/' + d.m); }
@@ -699,6 +730,7 @@ main.addEventListener('click', e => {
   else if (d.sq) { const sid = (location.hash.match(/^#\/s\/([\w-]+)/) || [])[1], sn = sid && SCEN_BY.get(sid); state.tab = sn && !scenRoad(sn) ? 'general' : 'routier'; store.set('tab', state.tab); state.filter = 'tous'; state.q = d.sq; qEl.value = d.sq; clr.hidden = false; state.shown = 40; lastScroll = 0; go('#/'); }
   else if (d.back) { const now = Date.now(); if (now - (window.__backT || 0) < 450) return; window.__backT = now; if ((window.__i || 0) > 0) history.go(-1 - (window.__memPush || 0)); else if ((location.hash || '#/') !== '#/') location.hash = '#/'; }
   else if (d.go) { state.tab = d.go; store.set('tab', state.tab); renderList(); window.scrollTo(0, 0); }
+  else if (d.afd !== undefined) { state.afd = d.afd === '1'; store.set('afd', state.afd); state.filter = 'tous'; route(); }
   else if (d.volee !== undefined) { state.volee = d.volee === '1'; store.set('volee', state.volee); state.filter = 'tous'; route(); }
   else if (d.scope) { state.tab = d.scope; store.set('tab', state.tab); state.shown = 40; renderList(); window.scrollTo(0, 0); }
   else if (d.filter) { state.filter = d.filter; state.shown = 40; renderList(); }
