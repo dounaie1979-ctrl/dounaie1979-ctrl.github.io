@@ -663,6 +663,25 @@ $('#tabs').addEventListener('click', e => {
   const b = e.target.closest('button[data-tab]'); if (!b) return;
   state.tab = b.dataset.tab; store.set('tab', state.tab); state.shown = 40; lastScroll = 0; renderList(); window.scrollTo(0, 0);
 });
+/* balayage horizontal : changer d'onglet (Routier ⇄ Général ⇄ Mementos ⇄ ★) */
+(() => {
+  let t0 = null;
+  const ORDER = ['routier', 'general', 'mementos', 'favoris'];
+  document.addEventListener('touchstart', e => {
+    const tg = e.target;
+    t0 = (e.touches.length === 1 && !(tg.closest && tg.closest('input,textarea,.tbl,table,pre,[data-noswipe]'))) ? {x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now()} : null;
+  }, {passive: true});
+  document.addEventListener('touchend', e => {
+    if (!t0) return; const t = e.changedTouches[0], dx = t.clientX - t0.x, dy = t.clientY - t0.y, dt = Date.now() - t0.t; t0 = null;
+    if ($('#tabs').hidden || (location.hash && location.hash !== '#/')) return;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || dt > 700) return;
+    const tabs = [...document.querySelectorAll('#tabs button[data-tab]')].map(b => b.dataset.tab);
+    const order = tabs.length ? tabs : ORDER;
+    const i = order.indexOf(state.tab), j = i + (dx < 0 ? 1 : -1);
+    if (i < 0 || j < 0 || j >= order.length) return;
+    state.tab = order[j]; store.set('tab', state.tab); state.shown = 40; lastScroll = 0; renderList(); window.scrollTo(0, 0);
+  }, {passive: true});
+})();
 $('#btnAbout').addEventListener('click', () => go('#/about'));
 $('#title').addEventListener('click', () => { if (location.hash !== '#/') location.hash = '#/'; });
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('on'), 1800); }
