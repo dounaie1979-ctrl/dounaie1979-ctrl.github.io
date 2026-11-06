@@ -350,6 +350,35 @@ function viewFam(i) {
   const ss = SCEN.filter(s => s.cat === f[2][0] && scenIds(s).length);
   return h + (ss.length ? `<div class="grid">${ss.map(s => scenCard(s)).join('')}</div>` : `<div class="empty">Aucune situation ne correspond au filtre.</div>`);
 }
+
+/* ---------- assistant de qualification (hors ligne, indicatif) ---------- */
+let QRX = null, NUMI = null;
+function qualify(q) {
+  const Q = D.qual; if (!Q) return [];
+  const t = ' ' + norm(q) + ' ';
+  if (t.trim().split(' ').length < 3) return [];
+  if (!QRX) { QRX = {}; for (const k in Q.faits) { try { QRX[k] = new RegExp(Q.faits[k]); } catch (e) {} } }
+  const has = {}; for (const k in QRX) has[k] = QRX[k].test(t);
+  let hit = Q.rules.filter(r => r.si.every(f => has[f]) && !r.ex.some(f => has[f]));
+  hit = hit.filter(a => !hit.some(b => b !== a && b.si.length > a.si.length && a.si.every(f => b.si.includes(f))));
+  return hit.map(r => ({r, sc: r.w * 2 + r.si.length * 2 + r.plus.filter(f => has[f]).length, faits: [...new Set(r.si.concat(r.plus.filter(f => has[f])))]}))
+    .sort((a, b) => b.sc - a.sc).slice(0, 3);
+}
+function qIdx(n) { if (!NUMI) { NUMI = new Map(); ROWS.forEach((r, i) => NUMI.set(r[F_NUM], i)); } return NUMI.get(n); }
+function qualHtml(list) {
+  if (!list.length) return '';
+  const L = D.qual.lab;
+  let h = `<h2>Pistes d’après les faits décrits</h2><p class="hint"><span class="tag">Indicatif – à valider</span> Analyse automatique du texte, hors ligne : ce ne sont que des pistes à confronter aux faits réels et aux textes. Elle ne retient aucune qualification.</p>`;
+  list.forEach(({r, faits}) => {
+    const nat = r.nat.map(qIdx).filter(i => i !== undefined);
+    h += `<div class="qual"><b class="qt">${esc(r.titre)}</b><div class="qf">Faits repérés : ${faits.map(f => `<span class="tag">${esc(L[f] || f)}</span>`).join(' ')}</div><p class="qw">${esc(r.why)}</p>`;
+    if (nat.length) h += `<div class="list" style="margin:6px 0">${nat.map(i => card(i)).join('')}</div>`;
+    if (r.scen.length) h += `<div class="qs">Dossiers : ${r.scen.map(id => { const s = SCEN.find(x => x.id === id); return s ? `<a class="inl" data-s="${s.id}" href="#/s/${s.id}">${esc(s.title)}</a>` : ''; }).filter(Boolean).join(' · ')}</div>`;
+    if (r.q.length) h += `<details class="qq"><summary>Circonstances à vérifier (${r.q.length})</summary><ul>${r.q.map(([t, ns]) => `<li>${esc(t)}${ns.map(qIdx).filter(i => i !== undefined).length ? ' ' + ns.map(n => `<a class="inl" data-n="${n}" href="#/n/${n}">${n}</a>`).join(' ') : ''}</li>`).join('')}</ul></details>`;
+    h += `</div>`;
+  });
+  return h;
+}
 function scenCard(s, big) {
   const n = scenIds(s).length;
   return `<button class="scard ${big ? 'big' : ''}" data-s="${s.id}"><b><span class="sico">${s.ico || ''}</span>${esc(s.title)}</b><small>${esc(cn(s.cat))} · ${n} NATINF</small></button>`;
@@ -407,10 +436,12 @@ function viewScope() {
   const other = num ? 0 : countOther(res.q || q, road);
   const otherBtn = other ? `<button class="more" data-scope="${road ? 'general' : 'routier'}">${other.toLocaleString('fr-FR')} résultat${other > 1 ? 's' : ''} aussi dans « ${road ? 'Général' : 'Routier'} »</button>` : '';
   if (res.dym) html += `<p class="hint">Résultats pour « <b>${esc(res.dym)}</b> » (vous avez tapé « ${esc(q)} »)</p>`;
+  const ql = num ? [] : qualify(q);
+  html += qualHtml(ql);
   if (sc.length) html += `<h2>Situations correspondantes</h2><div class="list" style="margin-bottom:12px">${sc.slice(0, 4).map(s => scenCard(s, true)).join('')}</div>`;
   if (mm.length) html += `<h2>Mementos</h2><div class="list" style="margin-bottom:12px">${mm.slice(0, 3).map(memCard).join('')}</div>`;
   if (!res.list.length) {
-    if (!sc.length && !mm.length) html += `<div class="empty">Aucun NATINF trouvé pour « ${esc(q)} »${sf !== 'tous' ? ' avec ce filtre' : ''} dans « ${road ? 'Routier' : 'Général'} ».</div>`;
+    if (!sc.length && !mm.length && !ql.length) html += `<div class="empty">Aucun NATINF trouvé pour « ${esc(q)} »${sf !== 'tous' ? ' avec ce filtre' : ''} dans « ${road ? 'Routier' : 'Général'} ».</div>`;
     return html + otherBtn;
   }
   html += `<h2>Infractions${res.mode === 'approchant' ? ' (approchant)' : ''}</h2><p class="hint">${res.list.length.toLocaleString('fr-FR')} résultat${res.list.length > 1 ? 's' : ''}${res.mode === 'article' ? ' pour cet article' : ''}</p>`;

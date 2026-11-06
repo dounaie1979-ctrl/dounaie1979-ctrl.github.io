@@ -185,3 +185,10 @@ mark{background:#ffd24d;color:#111;border-radius:3px;padding:0 1px}
 .memrow{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
 .memlink{display:inline-block;background:var(--brand-soft);color:var(--brand);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;text-decoration:none}
 a.inl{color:var(--brand);font-weight:600;text-decoration:underline}
+
+.qual{background:var(--card,#fff);border:1px solid #c9d6ee;border-left:4px solid #1d5fd1;border-radius:10px;padding:10px 12px;margin:0 0 10px}
+.qual .qt{display:block;font-size:1.02em;margin-bottom:4px}
+.qual .qf{font-size:.82em;margin:2px 0 4px}.qual .qf .tag{margin-right:3px}
+.qual .qw{margin:4px 0;font-size:.9em}.qual .qs{font-size:.88em;margin-top:4px}
+.qual .qq{margin-top:6px;font-size:.88em}.qual .qq ul{margin:4px 0 0 18px;padding:0}.qual .qq li{margin:3px 0}
+@media (prefers-color-scheme:dark){.qual{background:#0f1b33;border-color:#2b4170;border-left-color:#4b8cff}}
