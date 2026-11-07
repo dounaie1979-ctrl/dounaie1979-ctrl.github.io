@@ -341,8 +341,9 @@ function afdBanner() {
 }
 const volOn = s => !!(state.volee && (!s || scenRoad(s)));
 function scenIds(s) { return s.groups.flatMap(g => g.ids).filter(n => keepId(s, n)); }
+const famFlat = cats => cats.flatMap(c => { const sf = CATS.some(x => x[0] === c) ? null : FAM.find(x => x[0] === c); return sf ? famFlat(sf[2]) : [c]; });
 function famTiles(road) {
-  return `<div class="grid cats">${FAM.map(([name, ico, cats], i) => { if (isRC(cats[0]) !== road) return ''; const n = SCEN.filter(s => cats.includes(s.cat) && scenIds(s).length).length;
+  return `<div class="grid cats">${FAM.map(([name, ico, cats], i) => { if (isRC(cats[0]) !== road) return ''; if (FAM.some(x => x[0] !== name && x[2].includes(name) && !CATS.some(k => k[0] === name))) return ''; const fl = famFlat(cats); const n = SCEN.filter(s => fl.includes(s.cat) && scenIds(s).length).length;
     return n ? `<button class="scard cat" data-fam="${i}"><span class="ico">${ico}</span><b>${esc(name)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('')}</div>`;
 }
 function viewFam(i) {
@@ -350,7 +351,7 @@ function viewFam(i) {
   if (!f) return `<button class="back" data-back="1">‹ Retour</button><div class="empty">Famille introuvable.</div>`;
   let h = `<button class="back" data-back="1">‹ Retour</button><h2 style="margin-top:6px">${f[1]} ${esc(f[0])}</h2>` + (isRC(f[2][0]) ? volBanner() : '') + afdBanner();
   if (f[2].length > 1) {   // plusieurs sous-catégories : tuiles à ouvrir
-    const tiles = f[2].map(c => { const ci = CATS.findIndex(x => x[0] === c); if (ci < 0) return '';
+    const tiles = f[2].map(c => { const ci = CATS.findIndex(x => x[0] === c); if (ci < 0) { const fi = FAM.findIndex(x => x[0] === c); if (fi < 0) return ''; const fl = famFlat(FAM[fi][2]); const n = SCEN.filter(s => fl.includes(s.cat) && scenIds(s).length).length; return n ? `<button class="scard cat" data-fam="${fi}"><span class="ico">${FAM[fi][1]}</span><b>${esc(c)}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }
       const n = SCEN.filter(s => s.cat === c && scenIds(s).length).length;
       return n ? `<button class="scard cat" data-cat="${ci}"><span class="ico">${CATS[ci][1]}</span><b>${esc(cn(c))}</b><small>${n} situation${n > 1 ? 's' : ''}</small></button>` : ''; }).join('');
     return h + (tiles ? `<div class="grid cats">${tiles}</div>` : `<div class="empty">Aucune situation ne correspond au filtre.</div>`);
